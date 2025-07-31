@@ -1,0 +1,160 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v6.json",
+  "width": 700,
+  "padding": {"left": 100, "top": 5, "right": 5, "bottom": 10},
+  "autosize": "pad",
+
+  "data": [
+    {
+      "name": "tasks",
+      "values": [
+        {"Group": "A", "Type": "Design", "StartDate": "2024-07-01", "DueDate": "2024-07-10"},
+        {"Group": "A", "Type": "Development", "StartDate": "2024-07-05", "DueDate": "2024-07-20"},
+        {"Group": "B", "Type": "Research", "StartDate": "2024-07-03", "DueDate": "2024-07-15"},
+        {"Group": "B", "Type": "Testing", "StartDate": "2024-07-10", "DueDate": "2024-07-25"},
+        {"Group": "B", "Type": "Deployment", "StartDate": "2024-07-20", "DueDate": "2024-07-30"}
+      ],
+      "format": {
+        "type": "json",
+        "parse": {"StartDate": "date", "DueDate": "date"}
+      }
+    },
+    {
+      "name": "positioned",
+      "source": "tasks",
+      "transform": [
+        {
+          "type": "window",
+          "sort": [{"field": "Group"}, {"field": "Type"}],
+          "ops": ["row_number"],
+          "as": ["globalIndex"]
+        },
+        {
+          "type": "formula",
+          "as": "y",
+          "expr": "(datum.globalIndex - 1) * 30"
+        }
+      ]
+    },
+    {
+      "name": "groupPositions",
+      "source": "positioned",
+      "transform": [
+        {
+          "type": "aggregate",
+          "groupby": ["Group"],
+          "ops": ["min", "count"],
+          "fields": ["y", "y"],
+          "as": ["yStart", "rowCount"]
+        },
+        {
+          "type": "formula",
+          "as": "labelY",
+          "expr": "datum.yStart + datum.rowCount * 15 - 10"
+        }
+      ]
+    },
+    {
+      "name": "groupDividers",
+      "source": "groupPositions",
+      "transform": [
+        {
+          "type": "formula",
+          "as": "dividerY",
+          "expr": "datum.yStart + datum.rowCount * 30 - 5"
+        },
+        {
+          "type": "filter",
+          "expr": "datum.dividerY < data('positioned').length * 30 - 15"
+        }
+      ]
+    }
+  ],
+
+  "signals": [
+    {
+      "name": "chartHeight",
+      "update": "data('positioned').length * 30"
+    }
+  ],
+
+  "scales": [
+    {
+      "name": "x",
+      "type": "time",
+      "domain": {"data": "tasks", "fields": ["StartDate", "DueDate"]},
+      "range": "width"
+    }
+  ],
+
+  "axes": [
+    {
+      "orient": "bottom",
+      "scale": "x",
+      "format": "%b %d",
+      "zindex": 1
+    }
+  ],
+
+  "marks": [
+    {
+      "type": "rule",
+      "from": {"data": "groupDividers"},
+      "encode": {
+        "enter": {
+          "x": {"value": -200},
+          "x2": {"signal": "width"},
+          "y": {"field": "dividerY"},
+          "stroke": {"value": "#ddd"},
+          "strokeWidth": {"value": 1},
+          "strokeDash": {"value": [2, 2]}
+        }
+      }
+    },
+    {
+      "type": "text",
+      "from": {"data": "groupPositions"},
+      "encode": {
+        "enter": {
+          "x": {"value": -200},
+          "y": {"field": "labelY"},
+          "text": {"field": "Group"},
+          "fontSize": {"value": 14},
+          "fontWeight": {"value": "bold"},
+          "align": {"value": "left"},
+          "baseline": {"value": "middle"},
+          "fill": {"value": "#000"}
+        }
+      }
+    },
+    {
+      "type": "text",
+      "from": {"data": "positioned"},
+      "encode": {
+        "enter": {
+          "x": {"value": -100},
+          "y": {"field": "y", "offset": 14},
+          "text": {"field": "Type"},
+          "fontSize": {"value": 13},
+          "align": {"value": "left"},
+          "fill": {"value": "#333"}
+        }
+      }
+    },
+    {
+      "type": "rect",
+      "from": {"data": "positioned"},
+      "encode": {
+        "enter": {
+          "x": {"scale": "x", "field": "StartDate"},
+          "x2": {"scale": "x", "field": "DueDate"},
+          "y": {"field": "y"},
+          "height": {"value": 20},
+          "fill": {"value": "#4682b4"}
+        }
+      }
+    }
+  ],
+
+  "height": {"signal": "chartHeight"}
+}
