@@ -8,16 +8,47 @@
     {
       "name": "tasks",
       "values": [
-        {"Group": "A", "Type": "Design", "StartDate": "2024-07-01", "DueDate": "2024-07-10"},
-        {"Group": "A", "Type": "Development", "StartDate": "2024-07-05", "DueDate": "2024-07-20"},
-        {"Group": "B", "Type": "Research", "StartDate": "2024-07-03", "DueDate": "2024-07-15"},
-        {"Group": "B", "Type": "Testing", "StartDate": "2024-07-10", "DueDate": "2024-07-25"},
-        {"Group": "B", "Type": "Deployment", "StartDate": "2024-07-20", "DueDate": "2024-07-30"}
+        {"Group": "A", "Type": "A-Design", "StartDate": "2024-07-01", "DueDate": "2024-07-10"},
+        {"Group": "A", "Type": "A-Development", "StartDate": "2024-07-05", "DueDate": "2024-07-20"},
+        {"Group": "C", "Type": "C-Research", "StartDate": "2024-07-03", "DueDate": "2024-07-15"},
+        {"Group": "C", "Type": "C-Testing", "StartDate": "2024-07-10", "DueDate": "2024-07-25"},
+        {"Group": "C", "Type": "C-Deployment", "StartDate": "2024-08-20", "DueDate": "2024-07-30"},
+        {"Group": "B", "Type": "B-PA", "StartDate": "2024-08-03", "DueDate": "2024-07-15"},
+        {"Group": "B", "Type": "B-PB", "StartDate": "2024-07-20", "DueDate": "2024-07-25"},
+        {"Group": "B", "Type": "B-PC", "StartDate": "2024-07-26", "DueDate": "2024-07-30"},
+        {"Group": "C", "Type": "C-A", "StartDate": "2024-07-18", "DueDate": "2024-07-23"},
+        {"Group": "C", "Type": "C-B", "StartDate": "2024-07-21", "DueDate": "2024-08-01"}
+      ],
+      "transform":[
+        {
+          "type": "collect",
+          "sort": {
+            "field": ["Group","Type"],
+            "order": ["ascending","ascending"]
+          }
+        }
       ],
       "format": {
         "type": "json",
         "parse": {"StartDate": "date", "DueDate": "date"}
       }
+    },
+    {
+      "name": "datasorted",
+      "source": "tasks",
+      "transform": [
+        {
+          "type": "window",
+          "sort": [{"field": "Group"}, {"field": "Type"}],
+          "ops": ["row_number"],
+          "as": ["globalIndex"]
+        },
+        {
+          "type": "formula",
+          "as": "y",
+          "expr": "(datum.globalIndex - 1) * 30"
+        }
+      ]
     },
     {
       "name": "positioned",
