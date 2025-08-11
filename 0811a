@@ -21,6 +21,12 @@
             "field": ["Assignee","42MDESprint_SO+PD"],
             "order": ["ascending","ascending"]
           }
+        },
+        {
+          "type": "sequence",
+          "start":0,
+          "stop":0,
+          "as": "index"
         }
       ]
     },
@@ -125,7 +131,7 @@
       "from": {"data": "groupDividers"},
       "encode": {
         "enter": {
-          "x": {"value": -300},
+          "x": {"value": -260},
           "x2": {"signal": "width"},
           "y": {"field": "dividerY"},
           "stroke": {"value": "#8a8884"},
@@ -139,14 +145,15 @@
       "from": {"data": "groupPositions"},
       "encode": {
         "enter": {
-          "x": {"value": -300},
+          "x": {"value": -250},
           "y": {"field": "labelY"},
           "text": {"field": "Assignee"},
           "fontSize": {"value": 14},
           "fontWeight": {"value": "bold"},
           "align": {"value": "left"},
           "baseline": {"value": "top"},
-          "fill": {"value": "#000"}
+          "fill": {"value": "#000"},
+          "limit": 20
         }
       }
     },
@@ -177,6 +184,7 @@
         }
       }
     }
+
   ],
 
   "height": {"signal": "chartHeight"}
