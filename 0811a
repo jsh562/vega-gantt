@@ -6,19 +6,26 @@
 
   "data": [
     {
-      "name": "dataset",
-      "format": {
+      "name": "tasks",
+      "values": [
+        {"Group": "A", "Type": "Design", "StartDate": "2024-07-01", "EndDate": "2024-07-10"},
+        {"Group": "A", "Type": "Development", "StartDate": "2024-07-05", "EndDate": "2024-07-20"},
+        {"Group": "B", "Type": "Research", "StartDate": "2024-07-03", "EndDate": "2024-07-15"},
+        {"Group": "B", "Type": "Testing", "StartDate": "2024-07-10", "EndDate": "2024-07-25"},
+        {"Group": "B", "Type": "Deployment", "StartDate": "2024-07-20", "EndDate": "2024-07-30"}
+      ],
+	  "format": {
         "type": "json",
         "parse": {
-          "42MDESprint_CSMECH__start_date": "date",
-          "42MDESprint_CSMECH__overall_date": "date"
+          "StartDate": "date",
+          "EndDate": "date"
         }
       },
       "transform":[
         {
           "type": "collect",
           "sort": {
-            "field": ["Assignee","42MDESprint_SO+PD"],
+            "field": ["Group","Type"],
             "order": ["ascending","ascending"]
           }
         },
@@ -32,11 +39,11 @@
     },
     {
       "name": "datasorted",
-      "source": "dataset",
+      "source": "tasks",
       "transform": [
         {
           "type": "window",
-          "sort": [{"field": "Assignee"}, {"field": "42MDESprint_SO+PD"}],
+          "sort": [{"field": "Group"}, {"field": "Type"}],
           "ops": ["row_number"],
           "as": ["globalIndex"]
         },
@@ -49,11 +56,11 @@
     },
     {
       "name": "positioned",
-      "source": "dataset",
+      "source": "tasks",
       "transform": [
         {
           "type": "window",
-          "sort": [{"field": "Assignee"}, {"field": "42MDESprint_SO+PD"}],
+          "sort": [{"field": "Group"}, {"field": "Type"}],
           "ops": ["row_number"],
           "as": ["globalIndex"]
         },
@@ -70,11 +77,13 @@
       "transform": [
         {
           "type": "aggregate",
-          "groupby": ["Assignee"],
+          "groupby": ["Group"],
           "ops": ["min", "count"],
           "fields": ["y", "y"],
           "as": ["yStart", "rowCount"]
         },
+		{"type": "window", "ops": ["rank"], "as": ["groupIndex"]},
+		{"type": "formula", "as": "isEven", "expr": "datum.groupIndex % 2 == 0"},
         {
           "type": "formula",
           "as": "labelY",
@@ -111,7 +120,7 @@
     {
       "name": "x",
       "type": "time",
-      "domain": {"data": "dataset", "fields": ["42MDESprint_CSMECH__start_date", "42MDESprint_CSMECH__overall_date"]},
+      "domain": {"data": "tasks", "fields": ["StartDate", "EndDate"]},
       "range": "width"
     }
   ],
@@ -147,7 +156,7 @@
         "enter": {
           "x": {"value": -250},
           "y": {"field": "labelY"},
-          "text": {"field": "Assignee"},
+          "text": {"field": "Group"},
           "fontSize": {"value": 14},
           "fontWeight": {"value": "bold"},
           "align": {"value": "left"},
@@ -164,7 +173,7 @@
         "enter": {
           "x": {"value": -100},
           "y": {"field": "y", "offset": 14},
-          "text": {"field": "42MDESprint_SO+PD"},
+          "text": {"field": "Type"},
           "fontSize": {"value": 13},
           "align": {"value": "left"},
           "fill": {"value": "#333"}
@@ -176,16 +185,30 @@
       "from": {"data": "positioned"},
       "encode": {
         "enter": {
-          "x": {"scale": "x", "field": "42MDESprint_CSMECH__start_date"},
-          "x2": {"scale": "x", "field": "42MDESprint_CSMECH__overall_date"},
+          "x": {"scale": "x", "field": "StartDate"},
+          "x2": {"scale": "x", "field": "EndDate"},
           "y": {"field": "y"},
           "height": {"value": 20},
           "fill": {"value": "#4682b4"}
         }
       }
-    }
+    },
+    {
+	  "type": "rect",
+	  "from": {"data": "groupPositions"},
+	  "encode": {
+		"enter": {
+		  "x": {"value": -260},
+		  "x2": {"signal": "width"},
+		  "y": {"field": "yStart"},
+		  "height": {"expr": "datum.rowCount * 30"},
+		  "fill": {"expr": "datum.isEven ? '#f8f8f8' : 'transparent'"}
+		}
+	  }
+	}
+
 
   ],
 
   "height": {"signal": "chartHeight"}
-}
+}	
