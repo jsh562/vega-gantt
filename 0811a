@@ -48,8 +48,66 @@
           "as": ["tick"]
         }
       ]
-    },
-    {
+    }
+    ,{
+      "name":"dayTicks",
+      "transform":[
+        {
+          "type": "sequence",
+          "start": {"signal":"dayStart"},
+          "stop": {"signal":"dayStop"},
+          "step": 86400000,
+          "as": "ts"
+        }
+      ]
+    }
+    ,{
+      "name":"weekTicks",
+      "transform":[
+        {
+          "type": "sequence",
+          "start": {"signal":"weekStart"},
+          "stop": {"signal":"weekStop"},
+          "step": 604800000,
+          "as": "ts"
+        }
+      ]
+    }
+    ,{
+      "name":"monthTicks",
+      "transform":[
+        {
+          "type": "sequence",
+          "start": 0,
+          "stop": {"signal":"(utcyear(monthStop)-utcyear(monthStart))*12+(utcmonth(monthStop)-utcmonth(monthStart))"},
+          "step": 1,
+          "as": "k"
+        },
+        {
+          "type": "formula", 
+          "as": "ts",
+          "expr": "utc(utcyear(monthStart) + floor((utcmonth(monthStart)+datum.k)/12),(utcmonth(monthStart)+datum.k)%12,1)"
+        }
+      ]
+    }
+    ,{
+      "name":"yearTicks",
+      "transform":[
+        {
+          "type": "sequence",
+          "start": {"signal":"utcyear(yearStart)"},
+          "stop": {"signal":"utcyear(yearStop)"},
+          "step": 1,
+          "as": "y"
+        },
+        {
+          "type": "formula", 
+          "as": "ts",
+          "expr": "utc(datum.y,0,1)"
+        }
+      ]
+    }
+    ,{
       "name": "logdata",
       "values": [
         {}
@@ -147,14 +205,50 @@
     }
   ],
 
+
+
   "signals": [
     {
       "name": "chartHeight",
       "update": "data('positioned').length * 30"
-    },
-    {
+    }
+    ,{
       "name": "recordCount",
       "update": "'Records: ' + length(data('dataset'))"
+    }
+    ,{"name":"x0","update": "domain('x')[0]"}
+    ,{"name":"x1","update": "domain('x')[1]"}
+    ,{
+      "name": "dayStart",
+      "update": "utc(utcyear(x0),utcmonth(x0),utcdate(x0))"
+    }
+    ,{
+      "name": "dayStop",
+      "update": "utc(utcyear(x1),utcmonth(x1),utcdate(x1))"
+    }
+    ,{
+      "name": "weekStart",
+      "update": "utc(utcyear(x0),utcmonth(x0),utcdate(x0) - ((utcday(utc(utcyear(x0),utcmonth(x0),utcdate(x0)))+6)%7))"
+    }
+    ,{
+      "name": "weekStop",
+      "update": "utc(utcyear(x1),utcmonth(x1),utcdate(x1))"
+    }
+    ,{
+      "name": "monthStart",
+      "update": "utc(utcyear(x0),utcmonth(x0),1)"
+    }
+    ,{
+      "name": "monthStop",
+      "update": "utc(utcyear(x1),utcmonth(x1)+1,1)"
+    }
+    ,{
+      "name": "yearStart",
+      "update": "utc(utcyear(x0),0,1)"
+    }
+    ,{
+      "name": "yearStop",
+      "update": "utc(utcyear(x1)+1,0,1)"
     }
   ],
 
@@ -220,8 +314,60 @@
           "fill": {"value": "#000"}
         }
       }
-    },
-    { // Log Per Group
+    }
+    ,{// day ticks
+      "type": "rule",
+      "from": {"data": "dayTicks"},
+      "encode": {
+        "enter": {
+          "x": {"scale": "x", "signal": "toDate(datum.ts)"},
+          "y": {"value": 0},
+          "y2": {"signal": "chartHeight"},
+          "stroke": {"value": "#eee"},
+          "strokeWidth": {"value": 0.5}
+        }
+      }
+    }
+    ,{// day ticks
+      "type": "rule",
+      "from": {"data": "weekTicks"},
+      "encode": {
+        "enter": {
+          "x": {"scale": "x", "signal": "toDate(datum.ts)"},
+          "y": {"value": 0},
+          "y2": {"signal": "chartHeight"},
+          "stroke": {"value": "#ddd"},
+          "strokeWidth": {"value": 1}
+        }
+      }
+    }
+    ,{// day ticks
+      "type": "rule",
+      "from": {"data": "monthTicks"},
+      "encode": {
+        "enter": {
+          "x": {"scale": "x", "signal": "toDate(datum.ts)"},
+          "y": {"value": 0},
+          "y2": {"signal": "chartHeight"},
+          "stroke": {"value": "#bbb"},
+          "strokeWidth": {"value": 1}
+        }
+      }
+    }
+    ,{// day ticks
+      "type": "rule",
+      "from": {"data": "yearTicks"},
+      "encode": {
+        "enter": {
+          "x": {"scale": "x", "signal": "toDate(datum.ts)"},
+          "y": {"value": 0},
+          "y2": {"signal": "chartHeight"},
+          "stroke": {"value": "#888"},
+          "strokeWidth": {"value": 1}
+        }
+      }
+    }
+    ,{ // Log Per Group
       "type": "text",
       "from": {"data": "groupPositions"},
       "encode": {
@@ -305,20 +451,8 @@
           "strokeWidth": {"value": 1}
         }
       }
-    },
-    {// day ticks
-      "type": "rule",
-      "from": {"data": "dayBins"},
-      "encode": {
-        "enter": {
-          "x": {"scale": "x", "field": "tick"},
-          "y": {"value": 0},
-          "y2": {"signal": "chartHeight"},
-          "stroke": {"value": "red"},
-          "strokeWidth": {"value": 0.5}
-        }
-      }
     }
+    
   ],
 
   "height": {"signal": "chartHeight"}
