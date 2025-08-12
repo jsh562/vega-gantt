@@ -59,6 +59,10 @@
           "step": 86400000,
           "as": "ts"
         }
+        ,{
+          "type": "filter",
+          "expr": "datum.ts >= x0 && datum.ts <= x1"
+        }
       ]
     }
     ,{
@@ -70,6 +74,10 @@
           "stop": {"signal":"weekStop"},
           "step": 604800000,
           "as": "ts"
+        }
+        ,{
+          "type": "filter",
+          "expr": "datum.ts >= x0 && datum.ts <= x1"
         }
       ]
     }
@@ -88,6 +96,10 @@
           "as": "ts",
           "expr": "utc(utcyear(monthStart) + floor((utcmonth(monthStart)+datum.k)/12),(utcmonth(monthStart)+datum.k)%12,1)"
         }
+        ,{
+          "type": "filter",
+          "expr": "datum.ts >= x0 && datum.ts <= x1"
+        }
       ]
     }
     ,{
@@ -104,6 +116,10 @@
           "type": "formula", 
           "as": "ts",
           "expr": "utc(datum.y,0,1)"
+        }
+        ,{
+          "type": "filter",
+          "expr": "datum.ts >= x0 && datum.ts <= x1"
         }
       ]
     }
