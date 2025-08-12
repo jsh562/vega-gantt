@@ -31,6 +31,25 @@
       ]
     },
     {
+      "name": "dayBins",
+      "source": "dataset",
+      "transform": [
+        {
+          "type": "timeunit",
+          "field": "StartDate",
+          "units": ["year","month","date"],
+          "as": ["year","month","date"]
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["year", "month", "date"],
+          "ops": ["min"],
+          "fields": ["StartDate"],
+          "as": ["tick"]
+        }
+      ]
+    },
+    {
       "name": "logdata",
       "values": [
         {}
@@ -234,7 +253,6 @@
         }
       }
     },
-    
     {
       "type": "text",
       "from": {"data": "positioned"},
@@ -272,6 +290,32 @@
           "text": {"field": "msg"},
           "fontSize": {"value": 12},
           "fill": {"value": "black"}
+        }
+      }
+    },
+    {// day ticks
+      "type": "rule",
+      "from": {"data": "dayBins"},
+      "encode": {
+        "enter": {
+          "x": {"scale": "x", "field": "tick"},
+          "y": {"value": 0},
+          "y2": {"signal": "chartHeight"},
+          "stroke": {"value": "#eee"},
+          "strokeWidth": {"value": 1}
+        }
+      }
+    },
+    {// day ticks
+      "type": "rule",
+      "from": {"data": "dayBins"},
+      "encode": {
+        "enter": {
+          "x": {"scale": "x", "field": "tick"},
+          "y": {"value": 0},
+          "y2": {"signal": "chartHeight"},
+          "stroke": {"value": "red"},
+          "strokeWidth": {"value": 0.5}
         }
       }
     }
