@@ -1,0 +1,970 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json"
+  ,"width": {"signal":"containerSize()[0] - 50"}
+  ,"padding": {"left": 10, "top": 5, "right": 5, "bottom": 10}
+  ,"autosize": "fit-x"
+  ,"height": {"signal": "chartHeight"}
+  ,"data": [
+     {
+      "name": "dataset",
+      "format": {
+        "type": "json"
+        ,"parse": {
+          "Selected Start utc": "date"
+          ,"Selected Date utc": "date"
+        }
+      },
+      "transform":[
+        {
+          "type": "collect",
+          "sort": {
+            "field": ["Assignee","Selected Date utc","execution_step"],
+            "order": ["ascending","ascending","ascending"]
+          }
+        }
+        ,{
+          "type": "sequence",
+          "start":0,
+          "stop":0,
+          "as": "index"
+        }
+      ]
+    }
+    ,{
+      "name": "dayBins",
+      "source": "dataset",
+      "transform": [
+        {
+          "type": "timeunit",
+          "field": "StartDate",
+          "units": ["year","month","date"],
+          "as": ["year","month","date"]
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["year", "month", "date"],
+          "ops": ["min"],
+          "fields": ["StartDate"],
+          "as": ["tick"]
+        }
+      ]
+    }
+    ,{
+      "name":"dayTicks",
+      "transform":[
+        {
+          "type": "sequence",
+          "start": {"signal":"dayStart"},
+          "stop": {"signal":"dayStop"},
+          "step": 86400000,
+          "as": "ts"
+        }
+        ,{"type": "filter","expr": "datum.ts >= x0 && datum.ts <= x1"}
+        ,{
+          "type": "formula",
+          "as": "isWeekend",
+          "expr": "day(datum.ts) === 0 || day(datum.ts) === 6 ? 1 : 0"
+        }
+      ]
+    }
+    ,{
+      "name":"daysSummary",
+      "source": "dayTicks",
+      "transform":[
+        {
+          "type": "aggregate",
+          "fields": ["isWeekend"],
+          "ops": ["sum"],
+          "as": ["weekends"]
+        }
+        ,{
+          "type": "formula",
+          "as": "weekdays",
+          "expr": "length(data('days')) - datum.weekends"
+        }
+        
+        ,{
+          "type": "formula",
+          "as": "datadays",
+          "expr": "length(data('days'))"
+        }
+      ]
+    }
+    
+    ,{
+      "name":"weekTicks",
+      "transform":[
+        {
+          "type": "sequence",
+          "start": {"signal":"weekStart"},
+          "stop": {"signal":"weekStop"},
+          "step": 604800000,
+          "as": "ts"
+        }
+        ,{"type": "filter","expr": "datum.ts >= x0 && datum.ts <= x1"}
+      ]
+    }
+    ,{
+      "name":"monthTicks",
+      "transform":[
+        {
+          "type": "sequence",
+          "start": 0,
+          "stop": {"signal":"(year(monthStop)-year(monthStart))*12+(month(monthStop)-month(monthStart))"},
+          "step": 1,
+          "as": "k"
+        }
+        ,{
+          "type": "formula", 
+          "as": "ts",
+          "expr": "datetime(year(monthStart) + floor((month(monthStart)+datum.k)/12),(month(monthStart)+datum.k)%12,1)"
+        }
+        ,{
+          "type": "formula", 
+          "as": "tsEnd",
+          "expr": "datetime(year(monthStop) + floor((month(monthStop)+datum.k)/12),(month(monthStop)+datum.k)%12,1)"
+        }
+        ,{
+          "type": "formula",
+          "as": "tsMid",
+          "expr": "(datum.tsEnd+datum.ts)/2"
+        }
+        ,{"type": "filter","expr": "datum.ts >= x0 && datum.ts <= x1"}
+      ]
+    }
+    ,{ 
+      "name": "weekendDays"
+      , "source": "dayTicks"
+      , "transform": 
+        [ 
+          { 
+            "type": "filter"
+            ,"expr": "day(toDate(datum.ts)) == 6 || day(toDate(datum.ts)) == 0"
+          }
+          ,{ 
+            "type": "formula"
+            ,"as": "ts"
+            ,"expr": "datum.ts" 
+          }
+          ,{ 
+            "type": "formula"
+            ,"as": "tsEnd"
+            ,"expr": "datum.ts + 86400000" 
+          }
+        ] 
+    }
+    ,{
+      "name": "everyMonth",
+      "source": "dayTicks",
+      "transform": [
+        {
+          "type": "timeunit",
+          "field": "ts",
+          "units": ["year", "month"],
+          "as": ["year", "month"]
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["year", "month"],
+          "ops": ["min"],
+          "fields": ["ts"],
+          "as": ["monthStart"]
+        },
+        {
+          "type": "window",
+          "ops": ["rank"],
+          "as": ["monthIndex"],
+          "sort": {"field": ["year", "month"], "order": ["ascending", "ascending"]}
+        },
+        {
+          "type": "formula",
+          "as": "ts",
+          "expr": "max(datum.monthStart,x0)"
+        },
+        {
+          "type": "formula",
+          "as": "tsEnd",
+          "expr": "min(datetime(year(datum.monthStart), month(datum.monthStart) + 1, 1),x1)"
+        }
+        ,{
+          "type": "formula",
+          "as": "tsMid",
+          "expr": "(datum.tsEnd+datum.ts)/2"
+        }
+      ]
+    }
+    ,{
+      "name": "everyOtherMonth",
+      "source": "dayTicks",
+      "transform": [
+        {
+          "type": "timeunit",
+          "field": "ts",
+          "units": ["year", "month"],
+          "as": ["year", "month"]
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["year", "month"],
+          "ops": ["min"],
+          "fields": ["ts"],
+          "as": ["monthStart"]
+        },
+        {
+          "type": "window",
+          "ops": ["rank"],
+          "as": ["monthIndex"],
+          "sort": {"field": ["year", "month"], "order": ["ascending", "ascending"]}
+        },
+        {
+          "type": "filter",
+          "expr": "datum.monthIndex % 2 === 0"
+        },
+        {
+          "type": "formula",
+          "as": "ts",
+          "expr": "max(datum.monthStart,x0)"
+        },
+        {
+          "type": "formula",
+          "as": "tsEnd",
+          "expr": "min(datetime(year(datum.monthStart), month(datum.monthStart) + 1, 1),x1)"
+        }
+        ,{
+          "type": "formula",
+          "as": "tsMid",
+          "expr": "(datum.tsEnd+datum.ts)/2"
+        }
+      ]
+    }
+
+
+    ,{
+      "name":"yearTicks",
+      "transform":[
+        {
+          "type": "sequence",
+          "start": {"signal":"year(yearStart)"},
+          "stop": {"signal":"year(yearStop)"},
+          "step": 1,
+          "as": "y"
+        },
+        {
+          "type": "formula", 
+          "as": "ts",
+          "expr": "datetime(datum.y,0,1)"
+        }
+        ,{"type": "filter","expr": "datum.ts >= x0 && datum.ts <= x1"}
+      ]
+    }
+    ,{
+      "name": "logdata",
+      "values": [
+        {}
+      ],
+      "transform":[
+        {
+          "type": "window",
+          "ops": ["row_number"],
+          "as": ["i"]
+        },
+        {
+          "type": "formula",
+          "as": "msg",
+          "expr": "recordCount"
+        }
+      ]
+    },
+    {
+      "name": "datasorted", // maybe not used
+      "source": "dataset",
+      "transform": [
+        {
+          "type": "window",
+          "sort": {"field": ["Assignee","execution_step","Selected Date utc"]},
+          "ops": ["row_number"],
+          "as": ["globalIndex"]
+        },
+        {
+          "type": "formula",
+          "as": "y",
+          "expr": "(datum.globalIndex - 1) * 30"
+        }
+      ]
+    },
+    {
+      "name": "positioned",
+      "source": "dataset",
+      "transform": [
+        {
+          "type": "window",
+          "sort": {"field": ["Assignee","Selected Date utc","Selected Start utc","execution_step"], "order": ["ascending","ascending","ascending","ascending"]},
+          
+          //"sort": [{"field": "Assignee"}, {"field": "execution_step"}, {"field": "Selected Date utc"}],
+          "ops": ["row_number"],
+          "as": ["globalIndex"]
+        },
+        {
+          "type": "formula",
+          "as": "y",
+          "expr": "(datum.globalIndex - 1) * 30"
+        }
+      ]
+    },
+    {
+      "name": "groupPositions",
+      "source": "positioned",
+      "transform": [
+        {
+          "type": "aggregate",
+          "groupby": ["Assignee"],
+          "ops": ["min", "count", "max"],
+          "fields": ["y", "y", "y"],
+          "as": ["yStart", "rowCount", "yMax"]
+        },
+        {
+          "type": "window",
+          "as": ["groupIndex"],
+          "ops": ["rank"]
+        },
+        {
+          "type": "formula",
+          "as": "isEven",
+          "expr": "datum.groupIndex % 2 == 0"
+        },
+        {
+          "type": "formula",
+          "as": "labelY",
+          "expr": "datum.yStart"
+          //"expr": "datum.yStart + datum.rowCount * 15 - 15"
+        }
+      ]
+    },
+    {
+      "name": "groupDividers",
+      "source": "groupPositions",
+      "transform": [
+        {
+          "type": "formula",
+          "as": "dividerY",
+          "expr": "datum.yStart + datum.rowCount * 30 - 5"
+        },
+        {
+          "type": "filter",
+          "expr": "datum.dividerY < data('positioned').length * 30 - 15"
+        }
+      ]
+    }
+  ],
+
+
+
+  "signals": [
+    {
+      "name": "chartHeight",
+      "update": "data('positioned').length * 30"
+    }
+    ,{
+      "name": "height_of_chart1", 
+      "value": 100
+    }
+    ,{"name": "rowspacing", "value": 30}
+    ,{
+      "name": "recordCount",
+      "update": "'Records: ' + length(data('dataset'))"
+    }
+    ,{"name":"x0","update": "domain('x')[0]"}
+    ,{"name":"x1","update": "domain('x')[1]"}
+    ,{"name":"countDaysTotalRange","update": "(x1 - x0) / (1000 * 60 * 60 * 24)"}
+    ,{
+      "name": "dayStart",
+      "update": "datetime(year(x0),month(x0),date(x0))"
+    }
+    ,{
+      "name": "dayStop",
+      "update": "datetime(year(x1),month(x1),date(x1))"
+    }
+    ,{
+      "name": "weekStart",
+      "update": "datetime(year(x0),month(x0),date(x0) - ((day(datetime(year(x0),month(x0),date(x0)))+6)%7))"
+    }
+    ,{
+      "name": "weekStop",
+      "update": "datetime(year(x1),month(x1),date(x1))"
+    }
+    ,{
+      "name": "monthStart",
+      "update": "datetime(year(x0),month(x0),1)"
+    }
+    ,{
+      "name": "monthStop",
+      "update": "datetime(year(x1),month(x1)+1,1)"
+    }
+    ,{
+      "name": "yearStart",
+      "update": "datetime(year(x0),0,1)"
+    }
+    ,{
+      "name": "yearStop",
+      "update": "datetime(year(x1)+1,0,1)"
+    }
+    ,{
+      "name": "timezoneOffset",
+      "value": "-8*60*60*1000"
+    }
+  ],
+
+  "scales": [
+    {
+      "name": "x",
+      "type": "time",
+      "domain": {"data": "dataset", "fields": ["Selected Start utc", "Selected Date utc"]},
+      "range": "width"
+    }
+  ],
+
+  "axes": [
+    {
+      "scale": "x",
+      "orient": "bottom"
+      ,"domain": false,
+      //"bandPosition": 0.5,
+      //"format": "%b %d",
+      "zindex": 1,
+      //"grid": true,
+      "labels": false,
+      "labelOverlap": "parity",
+      "labelAlign": "left",
+      "labelAngle": 90,
+      "labelBaseline": "middle"
+      ,"ticks": false
+      //,"tickCount": {"interval":"month","step":1}
+    }
+  ],
+
+
+  "marks": [
+    {
+      "type": "group"
+      ,"name": "chart1_group"
+      ,"encode": {
+        "enter": {"y": {"value":0}}
+      }
+      ,"marks": [
+        {
+          "type": "symbol",
+          "encode": {
+            "enter": {
+              "x": {"value": 20},
+              "y": {"signal": "datum.i * 15 + 15"},
+              "text": {"field": "msg"},
+              "fontSize": {"value": 12},
+              "fill": {"value": "black"}
+            }
+          }
+        }
+      ]
+    }
+    ,{
+      "type": "group"
+      ,"name": "chart2_group"
+      ,"encode": {
+        "enter": {"y": {"signal":"height_of_chart1"}}
+      }
+      ,"marks": [
+        { // band month
+          "type": "rect",
+          "from": {"data": "everyOtherMonth"},
+          "encode": {
+            "enter": {
+              "x": { "scale": "x"
+                ,"signal": "toDate(datum.ts)" }
+              ,"x2": { "scale": "x", "signal": "toDate(datum.tsEnd)" }
+              ,"y": {"value": 0}
+              ,"y2": {"signal": "chartHeight"}
+              ,"fill": {"value": "rgba(157, 239, 249,0.35)"}
+              ,"fillOpacity": {"value": 0.3}
+            }
+          }
+        }
+
+        ,{// Assignee background
+          "type": "rect",
+          "from": {"data": "groupPositions"},
+          "encode": {
+            "enter": {
+              "x": {"value": -260},
+              "x2": {"signal": "width"},
+              "y": {"signal": "datum.yStart - 5"},
+              "height": {"signal": "datum.rowCount * 30"},
+              "fill": {"signal": "datum.isEven ? \"rgba(252, 251, 215,0.35)\" : \"transparent\""}
+            }
+          }
+        }
+        
+        
+        
+        /*,{// day tick text 
+          "type": "text",
+          "from": {"data": "dayTicks"},
+          "encode": {
+            "enter": {
+              "text": {
+                "signal": "timeFormat(datum.ts, '%Y-%m-%d %H:%M:%S')"
+              },
+              "x": {"scale": "x", "field": "ts"},
+              "y": {"value": 200},
+              "align": {"value": "center"},
+              "baseline": {"value": "middle"},
+              "fill": {"value": "black"}
+            }
+          }
+        }*/
+        
+        
+        
+        ,{ // band weekend
+          "type": "rect"
+          ,"from": { "data": "weekendDays" }
+          ,"encode": 
+            {
+              "enter": 
+              {
+                "x": { "scale": "x"
+                ,"signal": "toDate(datum.ts)" }
+                ,"x2": { "scale": "x", "signal": "toDate(datum.tsEnd)" }
+                ,"y": { "value": -10 }
+                ,"y2": { "signal": "chartHeight" }
+                ,"fill": { "value": "rgba(120, 120, 120,0.35)" }
+                ,"fillOpacity": { "value": 0.35 } 
+              }
+            }
+        }
+        
+
+        
+
+
+        ,{// rule Day start
+          "type": "rule",
+          "from": {"data": "dayTicks"},
+          "encode": {
+            "enter": {
+              "x": {"scale": "x", "signal": "toDate(datum.ts)"},
+              "y": {"value": -10},
+              "y2": {"signal": "chartHeight"},
+              "stroke": {"value": "#eee"},
+              "strokeWidth": {"value": 0.5}
+            }
+          }
+        }
+        ,{// rule week start / weekend end
+          "type": "rule",
+          "from": {"data": "weekTicks"},
+          "encode": {
+            "enter": {
+              "x": {"scale": "x", "signal": "toDate(datum.ts)"},
+              "y": {"value": -10},
+              "y2": {"signal": "chartHeight"},
+              "stroke": {"value": "#ddd"},
+              "strokeWidth": {"value": 1}
+            }
+          }
+        }
+        ,{// rule month start
+          "type": "rule",
+          "from": {"data": "monthTicks"},
+          "encode": {
+            "enter": {
+              "x": {"scale": "x", "signal": "toDate(datum.ts)"},
+              "y": {"value": -20},
+              "y2": {"signal": "chartHeight"},
+              "stroke": {"value": "#bbb"},
+              "strokeWidth": {"value": 1}
+            }
+          }
+        }
+        ,{// rule Year
+          "type": "rule",
+          "from": {"data": "yearTicks"},
+          "encode": {
+            "enter": {
+              "x": {"scale": "x", "signal": "toDate(datum.ts)"},
+              "y": {"value": 0},
+              "y2": {"signal": "chartHeight"},
+              "stroke": {"value": "#888"},
+              "strokeWidth": {"value": 1}
+            }
+          }
+        }
+
+        ,{// ticks Day
+          "type": "rule",
+          "from": {"data": "dayTicks"},
+          "encode": {
+            "enter": {
+              "x": {"scale": "x", "signal": "toDate(datum.ts)"},
+              "y": {"signal": "chartHeight"},
+              "y2": {"signal": "chartHeight+5"},
+              "stroke": {"value": "blue"},
+              "strokeWidth": {"value": 1.25}
+            }
+          }
+        }
+        ,{// ticks week
+          "type": "rule",
+          "from": {"data": "weekTicks"},
+          "encode": {
+            "enter": {
+              "x": {"scale": "x", "signal": "toDate(datum.ts)"},
+              "y": {"signal": "chartHeight"},
+              "y2": {"signal": "chartHeight+10"},
+              "stroke": {"value": "red"},//#cfcfcf
+              "strokeWidth": {"value": 1.5}
+            }
+          }
+        }
+
+        ,{ // BAR
+          "type": "rect",
+          "from": {"data": "positioned"},
+          "encode": {
+            "enter": {
+              "x": {"scale": "x", "field": "Selected Start utc"}
+              ,"x2": {"scale": "x", "field": "Selected Date utc"}
+              ,"y": {"field": "y"}
+              ,"height": {"value": 20}
+              ,"fill": {"value": "rgba(240,127,140,0.85)"}
+              //"fill": {"value": "#4682b4"}
+              ,"cornerRadius": {"value": 4}
+              ,"tooltip": {
+                "signal": "datum"
+              }
+            }
+          }
+        }
+        
+
+
+
+       
+
+
+        
+
+        
+
+        ,{ // SONumber
+          "type": "text",
+          "from": {"data": "positioned"},
+          "encode": {
+            "enter": {
+              "x": {"value": -140},
+              "y": {"field": "y", "offset": 14},
+              "text": {"field": "execution_step"},
+              "fontSize": {"value": 13},
+              "align": {"value": "left"},
+              "fill": {"value": "#333"}
+              ,"limit": {"value": 140}
+              ,"tooltip": {"signal": "datum"}
+              
+            }
+          }
+        }
+        ,{ // text Assignee
+          "type": "text",
+          "from": {"data": "groupPositions"},
+          "encode": {
+            "enter": {
+              "x": {"value": -250},
+              "y": {"field": "labelY", "offset": 3},
+              "text": {"field": "Assignee"},
+              "fontSize": {"value": 14},
+              "fontWeight": {"value": "bold"},
+              "align": {"value": "left"},
+              "baseline": {"value": "top"},
+              "fill": {"value": "#000"}
+              ,"limit": {"value": 110}
+              ,"tooltip": {"signal": "datum"}
+            }
+          }
+        }
+        ,{ // Assignee dividers
+          "type": "rule",
+          "from": {"data": "groupDividers"},
+          "encode": {
+            "enter": {
+              "x": {"value": -260},
+              "x2": {"signal": "width"},
+              "y": {"field": "dividerY"},
+              "stroke": {"value": "#8a8884"},
+              "strokeWidth": {"value": 2},
+              "strokeDash": {"value": [2, 2]}
+            }
+          }
+        }
+        ,{ // row dividers
+          "type": "rule",
+          "from": {"data": "positioned"},
+          "encode": {
+            "enter": {
+              "x": {"value": -260},
+              "x2": {"signal": "width"},
+              "y": {"signal": "datum.y -5"},
+              "stroke": {"value": "#8a8884"},
+              "strokeWidth": {"value": 0.5},
+              "strokeDash": {"value": [1, 1]}
+            }
+          }
+        }
+        
+        ,{// text week start
+          "type": "text",
+          "from": {"data": "weekTicks"},
+          "encode": {
+            "enter": {
+              "text": {
+                "signal": "timeFormat(datum.ts, '%d-%b')"
+              },
+              "x": {"scale": "x", "signal": "toDate(datum.ts)"},
+              "y": {"signal": "height_of_chart1+chartHeight-80"},
+              //"fontSize": [{"value":8}],
+              "fontSize": [{"signal":"clamp(((x1 - x0) / 2500000000), 5, 14)"}],
+              "align": {"value": "center"},
+              "angle": {"value": 0},
+              "baseline": {"value": "middle"},
+              "fill": {"value": "black"}
+            }
+          }
+        }
+        
+        
+        ,{// text month top
+          "type": "text",
+          "from": {"data": "everyMonth"},
+          "encode": {
+            "enter": {
+              "text": {
+                "signal": "timeFormat(datum.ts, '%B')"
+              },
+              "x": {"scale": "x", "field": "tsMid"},
+              "y": {"signal": "-17"},
+              "fontSize": [{"value":12}],
+              "align": {"value": "center"},
+              "angle": {"value": 0},
+              "baseline": {"value": "middle"},
+              "fill": {"value": "slategray"}
+            }
+          }
+        }
+        ,{// text month bottom
+          "type": "text",
+          "from": {"data": "monthTicks"},
+          "encode": {
+            "enter": {
+              "text": {
+                "signal": "timeFormat(datum.ts, '%B')"
+              },
+              "x": {"scale": "x", "field": "ts"},
+              "y": {"signal": "height_of_chart1+chartHeight-115-(5*timeFormat(datum.ts, '%B').length)"},
+              "fontSize": [{"value":11}],
+              "align": {"value": "left"},
+              "angle": {"value": 90},
+              "baseline": {"value": "bottom"},
+              "fill": {"value": "#4f4f4f"}
+            }
+          }
+        }
+
+
+/*
+        ,{// text weekends TEST
+          "type": "text",
+          "from": {"data": "weekendDays"},
+          "encode": {
+            "enter": {
+              "text": {
+                "signal": "timeFormat(datum.ts, '%Y-%m-%d %A ')"
+              },
+              "x": {"scale": "x", "field": "ts"},
+              "y": {"signal": "height_of_chart1+chartHeight-30-(5*timeFormat(datum.ts, '%B').length)"},
+              "fontSize": [{"value":11}],
+              "align": {"value": "left"},
+              "angle": {"value": 90},
+              "baseline": {"value": "middle"},
+              "fill": {"value": "#4f4f4f"}
+            }
+          }
+        }*/
+
+        ,{ // band weekend
+          "type": "text"
+          ,"from": { "data": "weekendDays" }
+          ,"encode": 
+            {
+              "enter": 
+              {
+                "x": { "scale": "x"
+                ,"signal": "toDate(datum.ts)" }
+                ,"x2": { "scale": "x", "signal": "toDate(datum.tsEnd)" }
+                ,"y": { "value": -10 }
+                ,"y2": { "signal": "chartHeight" }
+                ,"fill": { "value": "rgba(120, 120, 120,0.35)" }
+                ,"fillOpacity": { "value": 0.35 } 
+              }
+            } 
+        }
+
+        ,{// text x0
+          "type": "text",
+          "encode": {
+            "enter": {
+              "text": {
+                "signal": "timeFormat(x0, '%m-%d-%y')"
+              },
+              "x": {"scale": "x", "signal": "x0"},
+              "y": {"signal": "height_of_chart1+chartHeight-30"},
+              "fontSize": [{"value":12}],
+              "align": {"value": "right"},
+              "angle": {"value": 90},
+              "baseline": {"value": "top"},
+              "fill": {"value": "#4f4f4f"}
+            }
+          }
+        }
+        ,{// text x1
+          "type": "text",
+          "encode": {
+            "enter": {
+              "text": {
+                "signal": "timeFormat(x1, '%m-%d-%y')"
+              },
+              "x": {"scale": "x", "signal": "x1"},
+              "y": {"signal": "height_of_chart1+chartHeight-30"},
+              "fontSize": [{"value":12}],
+              "align": {"value": "right"},
+              "angle": {"value": 90},
+              "baseline": {"value": "bottom"},
+              "fill": {"value": "#4f4f4f"}
+            }
+          }
+        }
+        ,{// text x1-x0 range days
+          "type": "text",
+          "from": {"data": "daysSummary"},
+          "encode": {
+            "enter": {
+              "text": {
+                "signal": "'weekDays: ' + (format(countDaysTotalRange,'.2f') - format(datum.weekends, '.2f'))"
+              },
+              "x": {"scale": "x", "signal": "datetime(year(x0), month(x0), date(x0) + (((x1 - x0) / (1000 * 60 * 60 * 24)))/2)"},
+              "y": {"signal": "height_of_chart1+chartHeight-40"},
+              "fontSize": [{"value":12}],
+              "align": {"value": "right"},
+              "angle": {"value": 0},
+              "baseline": {"value": "bottom"},
+              "fill": {"value": "#4f4f4f"}
+            }
+          }
+        }
+        ,{// text x1-x0 range days
+          "type": "text",
+          "from": {"data": "daysSummary"},
+          "encode": {
+            "enter": {
+              "text": {
+                "signal": "'weekend Days: ' + format(datum.weekends, '.2f')"
+              },
+              "x": {"scale": "x", "signal": "datetime(year(x0), month(x0), date(x0) + (((x1 - x0) / (1000 * 60 * 60 * 24)))/2)"},
+              "y": {"signal": "height_of_chart1+chartHeight-30"},
+              "fontSize": [{"value":12}],
+              "align": {"value": "right"},
+              "angle": {"value": 0},
+              "baseline": {"value": "bottom"},
+              "fill": {"value": "#4f4f4f"}
+            }
+          }
+        }
+        ,{// text x1-x0 range days
+          "type": "text",
+          "from": {"data": "daysSummary"},
+          "encode": {
+            "enter": {
+              "text": {
+                "signal": "' CDays: ' + format(countDaysTotalRange,'.2f')"
+                //"signal": "' Cdays: ' + (round(countDaysTotalRange*100)/100)"
+              },
+              "x": {"scale": "x", "signal": "datetime(year(x0), month(x0), date(x0) + (((x1 - x0) / (1000 * 60 * 60 * 24)))/2)"},
+              "y": {"signal": "height_of_chart1+chartHeight-20"},
+              "fontSize": [{"value":12}],
+              "align": {"value": "right"},
+              "angle": {"value": 0},
+              "baseline": {"value": "bottom"},
+              "fill": {"value": "#4f4f4f"}
+            }
+          }
+        }
+        ,{// text x1-x0 range days
+          "type": "text",
+          "from": {"data": "daysSummary"},
+          "encode": {
+            "enter": {
+              "text": {
+                "signal": "'MWeeks: ' + format((countDaysTotalRange-datum.weekends)/5, '.2f')"
+              },
+              "x": {"scale": "x", "signal": "datetime(year(x0), month(x0), date(x0) + 23 + (((x1 - x0) / (1000 * 60 * 60 * 24)))/2)"},
+              "y": {"signal": "height_of_chart1+chartHeight-40"},
+              "fontSize": [{"value":12}],
+              "align": {"value": "right"},
+              "angle": {"value": 0},
+              "baseline": {"value": "bottom"},
+              "fill": {"value": "#4f4f4f"}
+            }
+          }
+        }
+        ,{// text x1-x0 range days
+          "type": "text",
+          "from": {"data": "daysSummary"},
+          "encode": {
+            "enter": {
+              "text": {
+                "signal": "' CWeeks: ' + format(countDaysTotalRange/7,'.2f')"
+                //"signal": "' Cdays: ' + (round(countDaysTotalRange*100)/100)"
+              },
+              "x": {"scale": "x", "signal": "datetime(year(x0), month(x0), date(x0) + 23 +(((x1 - x0) / (1000 * 60 * 60 * 24)))/2)"},
+              "y": {"signal": "height_of_chart1+chartHeight-20"},
+              "fontSize": [{"value":12}],
+              "align": {"value": "right"},
+              "angle": {"value": 0},
+              "baseline": {"value": "bottom"},
+              "fill": {"value": "#4f4f4f"}
+            }
+          }
+        }
+        
+        
+
+        ,{ // records text
+          "type": "text",
+          "from": {"data": "logdata"},
+          "encode": {
+            "enter": {
+              "x": {"value": 10},
+              "y": {"signal": "-30"},
+              "text": {"field": "msg"},
+              "fontSize": {"value": 12},
+              "fill": {"value": "black"}
+            }
+          }
+        }
+
+      ]
+
+      
+    }
+    
+    
+  ]
+
+
+}
