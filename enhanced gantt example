@@ -1,0 +1,1276 @@
+{
+  "title": {
+    "anchor": "start",
+    "align": "left",
+    "offset": 20,
+    "text": "Deneb Example - Enhanced Gantt Chart",
+    "font": "Verdana",
+    "fontSize": 24,
+    "fontWeight": "bold",
+    "fontStyle": "normal",
+    "subtitle": "Synthetic Construction Project; PL=planned; AC=actual (completed, in progress) or estimated (not started)",
+    "subtitleFont": "Verdana",
+    "subtitleFontSize": 16,
+    "subtitleFontWeight": "normal",
+    "subtitleFontStyle": "italic"
+  },
+  "data": {"name": "dataset"},
+  "transform": [
+    {
+      "calculate": "datum['Planned Days'] == 0 ? true : false",
+      "as": "_is_milestone"
+    },
+    {
+      "calculate": "length( split( datum['WBS'], '.' ) )",
+      "as": "_level"
+    },
+    {
+      "calculate": "split( datum['WBS'], '.' )[0]",
+      "as": "_phase"
+    },
+    {
+      "calculate": "datum['_level'] == 1 ? datetime(2099,11,31) : datum['Planned Start Date']",
+      "as": "_phase_interim_planned_start_date"
+    },
+    {
+      "calculate": "datum['_level'] == 1 ? datetime(2000,0,1) : datum['Planned End Date']",
+      "as": "_phase_interim_planned_end_date"
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "min",
+          "field": "_phase_interim_planned_start_date",
+          "as": "_phase_min_planned_start_date"
+        }
+      ],
+      "groupby": ["_phase"]
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "max",
+          "field": "_phase_interim_planned_end_date",
+          "as": "_phase_max_planned_end_date"
+        }
+      ],
+      "groupby": ["_phase"]
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "sum",
+          "field": "Planned Days",
+          "as": "_phase_planned_days"
+        }
+      ],
+      "groupby": ["_phase"]
+    },
+    {
+      "calculate": "datum['_level'] == 1 ? datum['_phase_min_planned_start_date'] : datum['Planned Start Date']",
+      "as": "_planned_start_date"
+    },
+    {
+      "calculate": "datum['_level'] == 1 ? datum['_phase_max_planned_end_date'] : datum['Planned End Date']",
+      "as": "_planned_end_date"
+    },
+    {
+      "calculate": "datum['_level'] == 1 ? datum['_phase_planned_days'] : datum['Planned Days']",
+      "as": "_planned_days"
+    },
+    {
+      "calculate": "datum['_level'] == 1 ? datetime(2099,11,31) : datum['Estimated Start Date']",
+      "as": "_phase_interim_actual_start_date"
+    },
+    {
+      "calculate": "datum['_level'] == 1 ? datetime(2000,0,1) : datum['Estimated End Date']",
+      "as": "_phase_interim_actual_end_date"
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "min",
+          "field": "_phase_interim_actual_start_date",
+          "as": "_phase_min_actual_start_date"
+        }
+      ],
+      "groupby": ["_phase"]
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "max",
+          "field": "_phase_interim_actual_end_date",
+          "as": "_phase_max_actual_end_date"
+        }
+      ],
+      "groupby": ["_phase"]
+    },
+    {
+      "calculate": "datum['_level'] == 1 ? datum['_phase_min_actual_start_date'] : datum['Estimated Start Date']",
+      "as": "_actual_start_date"
+    },
+    {
+      "calculate": "datum['_level'] == 1 ? datum['_phase_max_actual_end_date'] : datum['Estimated End Date']",
+      "as": "_actual_end_date"
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "sum",
+          "field": "Actual Days",
+          "as": "_phase_actual_days"
+        }
+      ],
+      "groupby": ["_phase"]
+    },
+    {
+      "calculate": "datum['Actual Days'] + datum['Remaining Days']",
+      "as": "_actual_plus_remaining_days"
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "sum",
+          "field": "_actual_plus_remaining_days",
+          "as": "_phase_actual_plus_remaining_days"
+        }
+      ],
+      "groupby": ["_phase"]
+    },
+    {
+      "calculate": "datum['_level'] == 1 ? datum['_phase_actual_plus_remaining_days'] : datum['_actual_plus_remaining_days']",
+      "as": "_actual_days"
+    },
+    {
+      "calculate": "datum['_planned_days'] - datum['_actual_days']",
+      "as": "_variance_days"
+    },
+    {
+      "calculate": "datum['_variance_days'] / datum['_planned_days']",
+      "as": "_variance_percent"
+    },
+    {
+      "calculate": "datum['_phase_actual_days'] == 0 ? datum['_phase_min_actual_start_date'] : timeOffset('day', datum['_phase_min_actual_start_date'], datum['_phase_actual_days'])",
+      "as": "_phase_estimated_progress_date"
+    },
+    {
+      "calculate": "datum['_actual_days'] == 0 ? datum['Estimated Start Date'] : timeOffset('day', datum['Estimated Start Date'], datum['Actual Days'])",
+      "as": "_estimated_progress_date"
+    },
+    {
+      "calculate": "datum['_phase_actual_plus_remaining_days'] == 0 ? 0 : datum['_phase_actual_days'] / datum['_phase_actual_plus_remaining_days']",
+      "as": "_phase_actual_complete_percent"
+    },
+    {
+      "calculate": "datum['_actual_plus_remaining_days'] == 0 ? 0 : datum['Actual Days'] / datum['_actual_plus_remaining_days']",
+      "as": "_task_actual_complete_percent"
+    },
+    {
+      "calculate": "datum['_is_milestone'] && datum['Actual End Date'] > datetime( 2001, 0, 1 ) ? 1 : 0",
+      "as": "_milestone_actual_complete_percent"
+    }
+  ],
+  "params": [
+    {
+      "name": "_show_planned",
+      "value": true,
+      "bind": {
+        "input": "checkbox",
+        "name": "Show Planned: "
+      }
+    }
+  ],
+  "spacing": 0,
+  "hconcat": [
+    {
+      "name": "MATRIX",
+      "height": 670,
+      "width": 600,
+      "hconcat": [
+        {
+          "name": "WBS_COLUMN",
+          "height": {"step": 25},
+          "width": 20,
+          "title": {
+            "text": "WBS",
+            "align": "right",
+            "anchor": "end",
+            "color": "#C9C9C9"
+          },
+          "mark": {
+            "type": "text",
+            "align": "right",
+            "x": 20,
+            "color": {
+              "expr": "datum['_variance_days'] < 0 ? pbiColor('negative') : 'black'"
+            },
+            "fontSize": {
+              "expr": "datum['_level'] == 1 ? 14 : 12"
+            },
+            "fontWeight": {
+              "expr": "datum['_level'] == 1 ? 'bold' : datum['_variance_days'] < 0 ? 'bold' : 'normal'"
+            }
+          },
+          "encoding": {
+            "y": {
+              "field": "WBS",
+              "type": "ordinal",
+              "axis": null
+            },
+            "text": {
+              "field": "WBS",
+              "type": "nominal"
+            }
+          }
+        },
+        {
+          "name": "PHASE_TASK_COLUMN",
+          "height": {"step": 25},
+          "width": 200,
+          "title": {
+            "text": "Phase\\Task",
+            "anchor": "start",
+            "align": "left",
+            "color": "#C9C9C9"
+          },
+          "mark": {
+            "type": "text",
+            "align": "left",
+            "x": 0,
+            "color": {
+              "expr": "datum['_variance_days'] < 0 ? pbiColor('negative') : 'black'"
+            },
+            "fontSize": {
+              "expr": "datum['_level'] == 1 ? 14 : 12"
+            },
+            "fontWeight": {
+              "expr": "datum['_level'] == 1 ? 'bold' : datum['_variance_days'] < 0 ? 'bold' : 'normal'"
+            }
+          },
+          "encoding": {
+            "y": {
+              "field": "WBS",
+              "type": "ordinal",
+              "axis": null
+            },
+            "text": {
+              "field": "Task",
+              "type": "nominal"
+            }
+          }
+        },
+        {
+          "name": "START_DATE_COLUMN",
+          "height": {"step": 25},
+          "width": 40,
+          "title": {
+            "text": "AC Start Date",
+            "align": "right",
+            "anchor": "end",
+            "color": "#C9C9C9"
+          },
+          "mark": {
+            "type": "text",
+            "align": "right",
+            "x": 40,
+            "color": {
+              "expr": "datum['_variance_days'] < 0 ? pbiColor('negative') : 'black'"
+            },
+            "fontSize": {
+              "expr": "datum['_level'] == 1 ? 14 : 12"
+            },
+            "fontWeight": {
+              "expr": "datum['_level'] == 1 ? 'bold' : datum['_variance_days'] < 0 ? 'bold' : 'normal'"
+            }
+          },
+          "encoding": {
+            "y": {
+              "field": "WBS",
+              "type": "ordinal",
+              "axis": null
+            },
+            "text": {
+              "field": "_actual_start_date",
+              "type": "temporal",
+              "formatType": "pbiFormat",
+              "format": "dd-MMM-yyyy"
+            }
+          }
+        },
+        {
+          "name": "PLANNED_DURATION_COLUMN",
+          "height": {"step": 25},
+          "width": 40,
+          "title": {
+            "text": "PL Dur",
+            "align": "right",
+            "anchor": "end",
+            "color": "#C9C9C9"
+          },
+          "transform": [
+            {
+              "calculate": "datum['_planned_days'] + 'd'",
+              "as": "_duration"
+            }
+          ],
+          "mark": {
+            "type": "text",
+            "align": "right",
+            "x": 40,
+            "color": {
+              "expr": "datum['_variance_days'] < 0 ? pbiColor('negative') : 'black'"
+            },
+            "fontSize": {
+              "expr": "datum['_level'] == 1 ? 14 : 12"
+            },
+            "fontWeight": {
+              "expr": "datum['_level'] == 1 ? 'bold' : datum['_variance_days'] < 0 ? 'bold' : 'normal'"
+            }
+          },
+          "encoding": {
+            "y": {
+              "field": "WBS",
+              "type": "ordinal",
+              "axis": null
+            },
+            "text": {
+              "field": "_duration",
+              "type": "nominal"
+            }
+          }
+        },
+        {
+          "name": "ACTUAL_DURATION_COLUMN",
+          "height": {"step": 25},
+          "width": 40,
+          "title": {
+            "text": "AC Dur",
+            "align": "right",
+            "anchor": "end",
+            "color": "#C9C9C9"
+          },
+          "transform": [
+            {
+              "calculate": "datum['_actual_days'] == 0 && datum['Actual End Date'] < datetime(2000,0,1) ? '' : datum['_actual_days'] + 'd'",
+              "as": "_duration"
+            }
+          ],
+          "mark": {
+            "type": "text",
+            "align": "right",
+            "x": 40,
+            "color": {
+              "expr": "datum['_actual_days'] == 0 && datum['Actual End Date'] > datetime(2000,0,1) ? 'black' : datum['_actual_days'] == 0 ? 'transparent' :  datum['_variance_days'] < 0 ? pbiColor('negative') : 'black'"
+            },
+            "fontSize": {
+              "expr": "datum['_level'] == 1 ? 14 : 12"
+            },
+            "fontWeight": {
+              "expr": "datum['_level'] == 1 ? 'bold' : datum['_variance_days'] < 0 ? 'bold' : 'normal'"
+            }
+          },
+          "encoding": {
+            "y": {
+              "field": "WBS",
+              "type": "ordinal",
+              "axis": null
+            },
+            "text": {
+              "field": "_duration",
+              "type": "nominal"
+            }
+          }
+        },
+        {
+          "name": "VARIANCE_DURATION_COLUMN",
+          "height": {"step": 25},
+          "width": 40,
+          "title": {
+            "text": "Variance",
+            "align": "right",
+            "anchor": "end",
+            "color": "#C9C9C9"
+          },
+          "transform": [
+            {
+              "calculate": "datum['_actual_days'] == 0 ? '' :datum['_variance_days'] + 'd'",
+              "as": "_duration"
+            }
+          ],
+          "mark": {
+            "type": "text",
+            "align": "right",
+            "x": 40,
+            "color": {
+              "expr": "datum['_actual_days'] == 0 ? 'transparent' : datum['_variance_days'] < 0 ? pbiColor('negative') : 'black'"
+            },
+            "fontSize": {
+              "expr": "datum['_level'] == 1 ? 14 : 12"
+            },
+            "fontWeight": {
+              "expr": "datum['_level'] == 1 ? 'bold' : datum['_variance_days'] < 0 ? 'bold' : 'normal'"
+            }
+          },
+          "encoding": {
+            "y": {
+              "field": "WBS",
+              "type": "ordinal",
+              "axis": null
+            },
+            "text": {
+              "field": "_duration",
+              "type": "nominal"
+            }
+          }
+        },
+        {
+          "name": "VARIANCE_PERCENT_COLUMN",
+          "height": {"step": 25},
+          "width": 40,
+          "title": {
+            "text": "Variance %",
+            "align": "right",
+            "anchor": "end",
+            "color": "#C9C9C9"
+          },
+          "transform": [
+            {
+              "calculate": "datum['_actual_days'] == 0 ? '' : datum['_variance_percent']",
+              "as": "_variance_percent"
+            }
+          ],
+          "mark": {
+            "type": "text",
+            "align": "right",
+            "x": 40,
+            "color": {
+              "expr": "datum['_actual_days'] == 0 ? 'transparent' : datum['_variance_days'] < 0 ? pbiColor('negative') : 'black'"
+            },
+            "fontSize": {
+              "expr": "datum['_level'] == 1 ? 14 : 12"
+            },
+            "fontWeight": {
+              "expr": "datum['_level'] == 1 ? 'bold' : datum['_variance_days'] < 0 ? 'bold' : 'normal'"
+            }
+          },
+          "encoding": {
+            "y": {
+              "field": "WBS",
+              "type": "ordinal",
+              "axis": null
+            },
+            "text": {
+              "field": "_variance_percent",
+              "type": "quantitative",
+              "format": ".0%"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "GANTT",
+      "height": 750,
+      "width": 900,
+      "layer": [
+        {
+          "name": "TODAY",
+          "transform": [
+            {
+              "filter": "datum['__row__'] == 0"
+            },
+            {
+              "calculate": "datetime( year( datetime( now() ) ), month( datetime( now() ) ), date( datetime( now() ) ) )",
+              "as": "_today"
+            },
+            {
+              "calculate": "'TODAY (' + timeFormat(now(), '%b') + ' ' + timeFormat(now(), '%e') + ')'",
+              "as": "_today_text"
+            }
+          ],
+          "layer": [
+            {
+              "name": "TODAY_RULE",
+              "mark": {
+                "type": "rule",
+                "strokeWidth": 1,
+                "strokeDash": [8, 8],
+                "color": {
+                  "expr": "pbiColor('negative')"
+                }
+              },
+              "encoding": {
+                "x": {
+                  "field": "_today",
+                  "type": "temporal"
+                }
+              }
+            },
+            {
+              "name": "TODAY_TEXT",
+              "mark": {
+                "type": "text",
+                "y": "height",
+                "yOffset": 10,
+                "color": {
+                  "expr": "pbiColor('negative')"
+                }
+              },
+              "encoding": {
+                "x": {
+                  "field": "_today",
+                  "type": "temporal"
+                },
+                "text": {
+                  "field": "_today_text",
+                  "type": "nominal"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "PLANNED_GANTT",
+          "layer": [
+            {
+              "name": "PLANNED_PHASE_BAR",
+              "transform": [
+                {
+                  "filter": "datum['_level'] == 1"
+                }
+              ],
+              "mark": {
+                "type": "bar",
+                "height": {"band": 0.2},
+                "yOffset": -8
+              },
+              "encoding": {
+                "x": {
+                  "field": "_phase_min_planned_start_date",
+                  "type": "temporal",
+                  "axis": {
+                    "orient": "top",
+                    "title": null,
+                    "labelPadding": 14,
+                    "labelAlign": "center",
+                    "labelExpr": "split( timeFormat(datum.value, '%b') + ' ' + timeFormat(datum.value, '%e'), ' ')"
+                  }
+                },
+                "x2": {
+                  "field": "_phase_max_planned_end_date"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                },
+                "color": {
+                  "condition": [
+                    {
+                      "test": "_show_planned",
+                      "value": {
+                        "expr": "pbiColor('min', -0.5)"
+                      }
+                    }
+                  ],
+                  "value": "transparent"
+                }
+              }
+            },
+            {
+              "name": "PLANNED_PHASE_BAR_START_SYMBOL",
+              "transform": [
+                {
+                  "filter": "datum['_level'] == 1"
+                }
+              ],
+              "mark": {
+                "type": "tick",
+                "thickness": 4,
+                "xOffset": 2,
+                "opacity": 1
+              },
+              "encoding": {
+                "x": {
+                  "field": "_phase_min_planned_start_date",
+                  "type": "temporal"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                },
+                "color": {
+                  "condition": [
+                    {
+                      "test": "_show_planned",
+                      "value": {
+                        "expr": "pbiColor('min', -0.5)"
+                      }
+                    }
+                  ],
+                  "value": "transparent"
+                }
+              }
+            },
+            {
+              "name": "PLANNED_PHASE_BAR_END_SYMBOL",
+              "transform": [
+                {
+                  "filter": "datum['_level'] == 1"
+                }
+              ],
+              "mark": {
+                "type": "tick",
+                "thickness": 4,
+                "xOffset": -2,
+                "opacity": 1
+              },
+              "encoding": {
+                "x": {
+                  "field": "_phase_max_planned_end_date",
+                  "type": "temporal"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                },
+                "color": {
+                  "condition": [
+                    {
+                      "test": "_show_planned",
+                      "value": {
+                        "expr": "pbiColor('min', -0.5)"
+                      }
+                    }
+                  ],
+                  "value": "transparent"
+                }
+              }
+            },
+            {
+              "name": "PLANNED_TASK_BAR",
+              "transform": [
+                {
+                  "filter": "datum['_level'] > 1 && datum['_is_milestone'] == false"
+                }
+              ],
+              "mark": {
+                "type": "bar",
+                "height": {"band": 0.7},
+                "yOffset": -4,
+                "cornerRadius": 4
+              },
+              "encoding": {
+                "x": {
+                  "field": "Planned Start Date",
+                  "type": "temporal"
+                },
+                "x2": {
+                  "field": "Planned End Date"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                },
+                "color": {
+                  "condition": [
+                    {
+                      "test": "_show_planned",
+                      "value": {
+                        "expr": "pbiColor('min', -0.25)"
+                      }
+                    }
+                  ],
+                  "value": "transparent"
+                }
+              }
+            },
+            {
+              "name": "PLANNED_MILESTONE_SYMBOL",
+              "transform": [
+                {
+                  "filter": "datum['_level'] > 1 && datum['_is_milestone'] == true"
+                }
+              ],
+              "mark": {
+                "type": "square",
+                "angle": 45,
+                "height": {"band": 0.7},
+                "opacity": 1,
+                "yOffset": -4,
+                "size": 200
+              },
+              "encoding": {
+                "x": {
+                  "field": "Planned Start Date",
+                  "type": "temporal"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                },
+                "color": {
+                  "condition": [
+                    {
+                      "test": "_show_planned",
+                      "value": {
+                        "expr": "pbiColor('min', -0.25)"
+                      }
+                    }
+                  ],
+                  "value": "transparent"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "ACTUAL_GANTT",
+          "layer": [
+            {
+              "name": "ACTUAL_PHASE_BAR_START_SYMBOL",
+              "transform": [
+                {
+                  "filter": "datum['_level'] == 1"
+                }
+              ],
+              "mark": {
+                "type": "tick",
+                "thickness": 4,
+                "xOffset": 2,
+                "yOffset": 4,
+                "opacity": 1,
+                "color": {
+                  "expr": "datum['_phase_actual_complete_percent'] > 0 ? 'black' : pbiColor(0, -0.5)"
+                }
+              },
+              "encoding": {
+                "x": {
+                  "field": "_phase_min_actual_start_date",
+                  "type": "temporal"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                },
+                "stroke": {
+                  "condition": [
+                    {
+                      "test": "_show_planned",
+                      "value": "black"
+                    }
+                  ],
+                  "value": "transparent"
+                }
+              }
+            },
+            {
+              "name": "ACTUAL_PHASE_BAR_END_SYMBOL",
+              "transform": [
+                {
+                  "filter": "datum['_level'] == 1"
+                }
+              ],
+              "mark": {
+                "type": "tick",
+                "thickness": 4,
+                "xOffset": -2,
+                "yOffset": 4,
+                "opacity": 1,
+                "color": {
+                  "expr": "datum['_phase_actual_complete_percent'] == 1 ? 'black' : pbiColor(0, -0.5)"
+                }
+              },
+              "encoding": {
+                "x": {
+                  "field": "_phase_max_actual_end_date",
+                  "type": "temporal"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                },
+                "stroke": {
+                  "condition": [
+                    {
+                      "test": "_show_planned",
+                      "value": "black"
+                    }
+                  ],
+                  "value": "transparent"
+                }
+              }
+            },
+            {
+              "name": "ACTUAL_PHASE_BAR_BACKGROUND",
+              "transform": [
+                {
+                  "filter": "datum['_level'] == 1"
+                }
+              ],
+              "mark": {
+                "type": "bar",
+                "height": {"band": 0.4},
+                "yOffset": -2,
+                "color": {
+                  "expr": "pbiColor(0, -0.5)"
+                }
+              },
+              "encoding": {
+                "x": {
+                  "field": "_phase_min_actual_start_date",
+                  "type": "temporal",
+                  "axis": {
+                    "orient": "top",
+                    "title": null,
+                    "labelPadding": 14,
+                    "labelAlign": "center",
+                    "labelExpr": "split( timeFormat(datum.value, '%b') + ' ' + timeFormat(datum.value, '%e'), ' ')"
+                  }
+                },
+                "x2": {
+                  "field": "_phase_max_actual_end_date"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                },
+                "stroke": {
+                  "condition": [
+                    {
+                      "test": "_show_planned",
+                      "value": "black"
+                    }
+                  ],
+                  "value": "transparent"
+                }
+              }
+            },
+            {
+              "name": "ACTUAL_PHASE_BAR_PROGRESS",
+              "transform": [
+                {
+                  "filter": "datum['_level'] == 1"
+                }
+              ],
+              "mark": {
+                "type": "bar",
+                "height": {"band": 0.4},
+                "yOffset": -2,
+                "color": "black"
+              },
+              "encoding": {
+                "x": {
+                  "field": "_phase_min_actual_start_date",
+                  "type": "temporal",
+                  "axis": {
+                    "orient": "top",
+                    "title": null,
+                    "labelPadding": 14,
+                    "labelAlign": "center",
+                    "labelExpr": "split( timeFormat(datum.value, '%b') + ' ' + timeFormat(datum.value, '%e'), ' ')"
+                  }
+                },
+                "x2": {
+                  "field": "_phase_estimated_progress_date"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                },
+                "stroke": {
+                  "condition": [
+                    {
+                      "test": "_show_planned",
+                      "value": "black"
+                    }
+                  ],
+                  "value": "transparent"
+                }
+              }
+            },
+            {
+              "name": "ACTUAL_TASK_BAR_BACKGROUND",
+              "transform": [
+                {
+                  "filter": "datum['_level'] > 1 && datum['_is_milestone'] == false"
+                }
+              ],
+              "mark": {
+                "type": "bar",
+                "height": {"band": 0.7},
+                "yOffset": 0,
+                "cornerRadius": 4,
+                "color": {
+                  "expr": "pbiColor(0, -0.25)"
+                }
+              },
+              "encoding": {
+                "x": {
+                  "field": "Estimated Start Date",
+                  "type": "temporal"
+                },
+                "x2": {
+                  "field": "Estimated End Date"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                },
+                "stroke": {
+                  "condition": [
+                    {
+                      "test": "_show_planned",
+                      "value": "black"
+                    }
+                  ],
+                  "value": "transparent"
+                }
+              }
+            },
+            {
+              "name": "ACTUAL_TASK_BAR_PROGRESS",
+              "transform": [
+                {
+                  "filter": "datum['_level'] > 1 && datum['_is_milestone'] == false"
+                }
+              ],
+              "mark": {
+                "type": "bar",
+                "tooltip": {
+                  "content": "data"
+                },
+                "height": {"band": 0.2},
+                "yOffset": 0,
+                "cornerRadius": 4,
+                "color": "black"
+              },
+              "encoding": {
+                "x": {
+                  "field": "Estimated Start Date",
+                  "type": "temporal"
+                },
+                "x2": {
+                  "field": "_estimated_progress_date"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                }
+              }
+            },
+            {
+              "name": "ACTUAL_MILESTONE_SYMBOL",
+              "transform": [
+                {
+                  "filter": "datum['_level'] > 1 && datum['_is_milestone'] == true"
+                }
+              ],
+              "mark": {
+                "type": "square",
+                "angle": 45,
+                "height": {"band": 0.7},
+                "yOffset": 0,
+                "opacity": 1,
+                "size": 200,
+                "color": {
+                  "expr": "datum['_milestone_actual_complete_percent'] == 1 ? 'black' : pbiColor(0, -0.5)"
+                }
+              },
+              "encoding": {
+                "x": {
+                  "field": "Estimated Start Date",
+                  "type": "temporal"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                },
+                "stroke": {
+                  "condition": [
+                    {
+                      "test": "_show_planned",
+                      "value": "black"
+                    }
+                  ],
+                  "value": "transparent"
+                }
+              }
+            },
+            {
+              "name": "ACTUAL_PHASE_BAR_PROGRESS_TEXT",
+              "transform": [
+                {
+                  "filter": "datum['_level'] == 1"
+                }
+              ],
+              "mark": {
+                "type": "text",
+                "xOffset": 4,
+                "yOffset": 4,
+                "align": "left",
+                "baseline": "middle",
+                "color": {
+                  "expr": "datum['_phase_actual_complete_percent'] == 0 ? 'transparent' : 'black'"
+                }
+              },
+              "encoding": {
+                "x": {
+                  "field": "_phase_max_actual_end_date",
+                  "type": "temporal"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                },
+                "text": {
+                  "field": "_phase_actual_complete_percent",
+                  "type": "quantitative",
+                  "format": ".0%"
+                }
+              }
+            },
+            {
+              "name": "ACTUAL_TASK_BAR_PROGRESS_TEXT",
+              "transform": [
+                {
+                  "filter": "datum['_level'] > 1 && datum['_is_milestone'] == false"
+                }
+              ],
+              "mark": {
+                "type": "text",
+                "xOffset": 4,
+                "yOffset": 0,
+                "align": "left",
+                "baseline": "middle",
+                "color": {
+                  "expr": "datum['_task_actual_complete_percent'] == 0 ? 'transparent' : 'black'"
+                }
+              },
+              "encoding": {
+                "x": {
+                  "field": "Estimated End Date",
+                  "type": "temporal"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                },
+                "text": {
+                  "field": "_task_actual_complete_percent",
+                  "type": "quantitative",
+                  "format": ".0%"
+                }
+              }
+            },
+            {
+              "name": "ACTUAL_MILESTONE_PROGRESS_TEXT",
+              "transform": [
+                {
+                  "filter": "datum['_level'] > 1 && datum['_is_milestone'] == true"
+                }
+              ],
+              "mark": {
+                "type": "text",
+                "xOffset": 14,
+                "yOffset": 0,
+                "align": "left",
+                "baseline": "middle",
+                "color": {
+                  "expr": "datum['_milestone_actual_complete_percent'] == 0 ? 'transparent' : 'black'"
+                }
+              },
+              "encoding": {
+                "x": {
+                  "field": "Estimated End Date",
+                  "type": "temporal"
+                },
+                "y": {
+                  "field": "WBS",
+                  "type": "ordinal",
+                  "axis": null
+                },
+                "text": {
+                  "field": "_milestone_actual_complete_percent",
+                  "type": "quantitative",
+                  "format": ".0%"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "PROJECT_METRICS",
+          "transform": [
+            {
+              "joinaggregate": [
+                {
+                  "op": "min",
+                  "field": "_phase_min_planned_start_date",
+                  "as": "_project_planned_start_date"
+                }
+              ]
+            },
+            {
+              "joinaggregate": [
+                {
+                  "op": "max",
+                  "field": "_phase_max_planned_end_date",
+                  "as": "_project_planned_end_date"
+                }
+              ]
+            },
+            {
+              "calculate": "( datum['_project_planned_end_date'] - datum['_project_planned_start_date'] ) / (24*60*60*1000)",
+              "as": "_project_planned_days"
+            },
+            {
+              "joinaggregate": [
+                {
+                  "op": "min",
+                  "field": "_phase_min_actual_start_date",
+                  "as": "_project_actual_start_date"
+                }
+              ]
+            },
+            {
+              "joinaggregate": [
+                {
+                  "op": "max",
+                  "field": "_phase_max_actual_end_date",
+                  "as": "_project_actual_end_date"
+                }
+              ]
+            },
+            {
+              "calculate": "( datum['_project_actual_end_date'] - datum['_project_actual_start_date'] ) / (24*60*60*1000)",
+              "as": "_project_actual_days"
+            },
+            {
+              "calculate": "datum['_project_actual_days'] - datum['_project_planned_days']",
+              "as": "_project_variance_days"
+            },
+            {
+              "calculate": "datum['_project_variance_days'] / datum['_project_planned_days']",
+              "as": "_project_variance_percent"
+            },
+            {
+              "calculate": "datum['_project_variance_days'] < 0 ? 'AHEAD OF SCHEDULE' : datum['_project_variance_days'] > 0 ? 'BEHIND SCHEDULE': 'ON SCHEDULE'",
+              "as": "_project_schedule_status"
+            },
+            {
+              "filter": "datum['ID'] <= 4"
+            },
+            {
+              "calculate": "datum['ID'] == 1 ? -340 : datum['ID'] == 2 ? -320 : datum['ID'] == 3 ? -300 : datum['ID'] == 4 ? -280 : null",
+              "as": "_metric_y"
+            },
+            {
+              "calculate": "datum['ID'] == 1 ? 'Status:' : datum['ID'] == 2 ? 'Plan:' : datum['ID'] == 3 ? 'Actual:' : datum['ID'] == 4 ? 'Variance:' : null",
+              "as": "_metric_label"
+            },
+            {
+              "calculate": "datum['ID'] == 1 ? datum['_project_schedule_status'] : datum['ID'] == 2 ? timeFormat( datum['_project_planned_start_date'], '%b %e, %Y' ) + ' to ' + timeFormat( datum['_project_planned_end_date'], '%b %e, %Y' ) + ' (' + format( datum['_project_planned_days'], ',.0f' ) + ' days)' : datum['ID'] == 3 ? timeFormat( datum['_project_actual_start_date'], '%b %e, %Y' ) + ' to ' + timeFormat( datum['_project_actual_end_date'], '%b %e, %Y' ) + ' (' + format( datum['_project_actual_days'], ',.0f' ) + ' days)' : datum['ID'] == 4 ? format( datum['_project_variance_days'], ',.0f' ) + ' days (' + format( datum['_project_variance_percent'], '.0%' ) + ')' : null",
+              "as": "_metric_value"
+            }
+          ],
+          "layer": [
+            {
+              "name": "PROJECT_METRICS_BOX",
+              "mark": {
+                "type": "rect",
+                "x": 400,
+                "x2": 900,
+                "y": 20,
+                "y2": 132,
+                "fill": "#F0F0F0",
+                "stroke": {
+                  "expr": "datum['_project_variance_days'] < 0 ? pbiColor('positive') : datum['_project_variance_days'] > 0 ? pbiColor('negative') : 'black'"
+                },
+                "strokeWidth": 4
+              },
+              "encoding": {
+                "text": {
+                  "field": "_project_metrics_multiline_text",
+                  "type": "nominal"
+                }
+              }
+            },
+            {
+              "name": "PROJECT_METRICS_TITLE",
+              "mark": {
+                "type": "text",
+                "x": 404,
+                "y": 35,
+                "align": "left",
+                "fontSize": 24,
+                "color": "black"
+              },
+              "encoding": {
+                "text": {
+                  "value": "PROJECT METRICS"
+                }
+              }
+            },
+            {
+              "name": "PROJECT_METRICS_LABEL",
+              "mark": {
+                "type": "text",
+                "x": 404,
+                "y": 400,
+                "yOffset": {
+                  "expr": "datum['_metric_y']"
+                },
+                "align": "left",
+                "fontSize": 16,
+                "fontStyle": "italic",
+                "color": "black"
+              },
+              "encoding": {
+                "text": {
+                  "field": "_metric_label",
+                  "type": "nominal"
+                }
+              }
+            },
+            {
+              "name": "PROJECT_METRICS_VALUE",
+              "mark": {
+                "type": "text",
+                "x": 510,
+                "y": 400,
+                "yOffset": {
+                  "expr": "datum['_metric_y']"
+                },
+                "align": "left",
+                "fontSize": 16,
+                "fontStyle": "italic",
+                "color": "black"
+              },
+              "encoding": {
+                "text": {
+                  "field": "_metric_value",
+                  "type": "nominal"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
