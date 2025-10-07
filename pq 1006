@@ -1,0 +1,50 @@
+(datecolumn as datetime) =>
+if fx_dst(datecolumn) then 
+let CurrentDate = datecolumn,
+value = CurrentDate - #duration(0,7,0,0)
+in value
+else 
+let CurrentDate = datecolumn,
+value = CurrentDate - #duration(0,8,0,0)
+in value
+
+
+(datecolumn as datetime) =>
+if datecolumn = null then null else 
+let CurrentDate = datecolumn,
+    CurrentYear = Date.Year(CurrentDate),
+
+    // --- 2. Calculate DST START Date/Time (Second Sunday of March at 2:00 AM) ---
+    // Find the date of March 1st.
+    March1st = #date(CurrentYear, 3, 1),
+    
+    // Calculate days to add to March 1st to get to the FIRST Sunday.
+    // Day.Sunday (0) is the start of the week.
+    DaysToAddForFirstSunday = 7 - Date.DayOfWeek(March1st, Day.Sunday),
+    
+    // Calculate the date of the Second Sunday of March.
+    SecondSundayOfMarchDate = Date.AddDays(March1st, DaysToAddForFirstSunday + 7),
+    
+    // The exact moment DST starts (2:00:00 AM)
+    DST_Start_Time = #datetime(Date.Year(SecondSundayOfMarchDate), Date.Month(SecondSundayOfMarchDate), Date.Day(SecondSundayOfMarchDate), 2, 0, 0),
+
+    // --- 3. Calculate DST END Date/Time (First Sunday of November at 2:00 AM) ---
+    // Find the date of November 1st.
+    November1st = #date(CurrentYear, 11, 1),
+    
+    // Calculate days to add to November 1st to get to the FIRST Sunday.
+    DaysToAddForFirstSundayNov = 7 - Date.DayOfWeek(November1st, Day.Sunday),
+
+    // The date of the First Sunday of November.
+    FirstSundayOfNovemberDate = Date.AddDays(November1st, DaysToAddForFirstSundayNov),
+
+    // The exact moment DST ends (2:00:00 AM)
+    DST_End_Time = #datetime(Date.Year(FirstSundayOfNovemberDate), Date.Month(FirstSundayOfNovemberDate), Date.Day(FirstSundayOfNovemberDate), 2, 0, 0),
+
+    // --- 4. Final Comparison Check ---
+    // DST is IN EFFECT when the current datetime is greater than or equal to the start time 
+    // AND strictly less than the end time (the time immediately before the clocks fall back).
+    IsDSTPeriod = 
+        CurrentDate >= DST_Start_Time and
+        CurrentDate < DST_End_Time
+   in IsDSTPeriod
